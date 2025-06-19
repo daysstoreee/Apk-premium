@@ -2,5 +2,606 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    ...
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Apps Store - WhatsApp Auto Order</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+        }
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .qris-code {
+            transition: all 0.3s ease;
+        }
+        .qris-code:hover {
+            transform: scale(1.05);
+        }
+        .blink {
+            animation: blink 1.5s infinite;
+        }
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-4 py-6">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="flex items-center mb-4 md:mb-0">
+                    <i class="fab fa-whatsapp text-4xl mr-3"></i>
+                    <div>
+                        <h1 class="text-2xl font-bold">Premium Apps Store</h1>
+                        <p class="text-sm opacity-90">Auto Order via WhatsApp + QRIS Payment</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="bg-white/20 rounded-full p-2">
+                        <i class="fas fa-shopping-cart text-xl"></i>
+                        <span id="cart-count" class="ml-1">0</span>
+                    </div>
+                    <button id="export-btn" class="bg-white text-green-600 px-4 py-2 rounded-full font-semibold hover:bg-gray-100 hidden">
+                        <i class="fas fa-file-excel mr-2"></i>Export Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Product Categories -->
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">Our Products</h2>
+            <div class="flex flex-wrap gap-2 mb-6">
+                <button class="category-btn px-4 py-2 bg-green-600 text-white rounded-full hover:bg-green-700 active:bg-green-800" data-category="all">All Products</button>
+                <button class="category-btn px-4 py-2 bg-gray-200 text-gray-800 rounded-full hover:bg-gray-300 active:bg-gray-400" data-category="streaming">Streaming</button>
+                <button class="category-btn px-4 py-2 bg-gray-200 text-gray-800 rounded-full hover:bg-gray-300 active:bg-gray-400" data-category="video">Video Editing</button>
+                <button class="category-btn px-4 py-2 bg-gray-200 text-gray-800 rounded-full hover:bg-gray-300 active:bg-gray-400" data-category="productivity">Productivity</button>
+                <button class="category-btn px-4 py-2 bg-gray-200 text-gray-800 rounded-full hover:bg-gray-300 active:bg-gray-400" data-category="social">Social Media</button>
+            </div>
+            
+            <!-- Search Box -->
+            <div class="relative mb-6">
+                <input type="text" id="search-input" placeholder="Search products..." class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500">
+                <i class="fas fa-search absolute right-3 top-3.5 text-gray-400"></i>
+            </div>
+        </div>
+
+        <!-- Products Grid -->
+        <div id="products-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-12">
+            <!-- Products will be loaded here dynamically -->
+        </div>
+
+        <!-- Order Section -->
+        <div id="order-section" class="bg-white rounded-xl shadow-lg p-6 mb-8 hidden">
+            <h2 class="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Your Order</h2>
+            <div id="order-items" class="mb-6">
+                <!-- Order items will be added here -->
+            </div>
+            <div class="flex justify-between items-center mb-6">
+                <span class="text-lg font-semibold">Total:</span>
+                <span id="order-total" class="text-xl font-bold text-green-600">Rp 0</span>
+            </div>
+            
+            <!-- Customer Info Form -->
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold mb-4">Customer Information</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="customer-name" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                        <input type="text" id="customer-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+                    <div>
+                        <label for="customer-wa" class="block text-sm font-medium text-gray-700 mb-1">WhatsApp Number</label>
+                        <div class="flex">
+                            <span class="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-300 bg-gray-50 text-gray-500">+62</span>
+                            <input type="tel" id="customer-wa" class="w-full px-4 py-2 border border-gray-300 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="customer-email" class="block text-sm font-medium text-gray-700 mb-1">Email (Optional)</label>
+                        <input type="email" id="customer-email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+                    <div>
+                        <label for="customer-note" class="block text-sm font-medium text-gray-700 mb-1">Order Note (Optional)</label>
+                        <input type="text" id="customer-note" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Payment Method -->
+            <div class="mb-6">
+                <h3 class="text-lg font-semibold mb-4">Payment Method</h3>
+                <div class="flex flex-col space-y-3">
+                    <label class="inline-flex items-center">
+                        <input type="radio" name="payment-method" value="qris" class="h-5 w-5 text-green-600" checked>
+                        <span class="ml-2 text-gray-700">QRIS (Instant Payment)</span>
+                    </label>
+                </div>
+                
+                <!-- QRIS Payment Box -->
+                <div id="qris-payment" class="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <div class="flex flex-col items-center">
+                        <h4 class="text-lg font-semibold mb-2">Scan QR Code Below</h4>
+                        <p class="text-sm text-gray-600 mb-4">Total: <span id="qris-amount" class="font-bold">Rp 0</span></p>
+                        <div class="qris-code bg-white p-3 rounded-lg shadow-md mb-4">
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=PremiumAppsStore-Payment" alt="QRIS Code" class="w-40 h-40">
+                        </div>
+                        <p class="text-sm text-gray-600 text-center mb-2">Scan with your mobile banking app or e-wallet</p>
+                        <div class="flex items-center text-yellow-600">
+                            <i class="fas fa-exclamation-circle mr-2"></i>
+                            <span class="text-sm blink">Waiting for payment...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Order Buttons -->
+            <div class="flex flex-col sm:flex-row justify-between space-y-3 sm:space-y-0 sm:space-x-4">
+                <button id="cancel-order-btn" class="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg font-semibold hover:bg-gray-300 transition">
+                    <i class="fas fa-times mr-2"></i>Cancel Order
+                </button>
+                <button id="confirm-order-btn" class="px-6 py-3 gradient-bg text-white rounded-lg font-semibold hover:opacity-90 transition flex items-center justify-center">
+                    <i class="fab fa-whatsapp mr-2"></i>Confirm & Send via WhatsApp
+                </button>
+            </div>
+        </div>
+
+        <!-- Order Success Modal -->
+        <div id="success-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4">
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-check text-green-600 text-3xl"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-800 mb-2">Order Successful!</h3>
+                    <p class="text-gray-600 mb-6">Your order has been placed successfully. We will contact you shortly via WhatsApp.</p>
+                    <button id="close-modal-btn" class="px-6 py-2 gradient-bg text-white rounded-lg font-semibold hover:opacity-90 transition">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Database Section (Admin View) -->
+    <section id="database-section" class="container mx-auto px-4 py-8 bg-white rounded-xl shadow-lg mb-12">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">Sales Database</h2>
+            <button id="toggle-db-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg font-semibold hover:bg-gray-300">
+                <i class="fas fa-eye-slash mr-2"></i>Hide Database
+            </button>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table id="sales-table" class="min-w-full bg-white border border-gray-200">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="py-3 px-4 border-b text-left">Order ID</th>
+                        <th class="py-3 px-4 border-b text-left">Date</th>
+                        <th class="py-3 px-4 border-b text-left">Customer</th>
+                        <th class="py-3 px-4 border-b text-left">WhatsApp</th>
+                        <th class="py-3 px-4 border-b text-left">Products</th>
+                        <th class="py-3 px-4 border-b text-left">Total</th>
+                        <th class="py-3 px-4 border-b text-left">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="sales-data">
+                    <!-- Sales data will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="gradient-bg text-white py-8">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-6 md:mb-0">
+                    <h3 class="text-xl font-bold mb-2">Premium Apps Store</h3>
+                    <p class="text-sm opacity-90">Your trusted source for premium apps subscriptions</p>
+                </div>
+                <div class="flex space-x-6">
+                    <a href="#" class="hover:text-gray-200"><i class="fab fa-whatsapp text-xl"></i></a>
+                    <a href="#" class="hover:text-gray-200"><i class="fab fa-instagram text-xl"></i></a>
+                    <a href="#" class="hover:text-gray-200"><i class="fab fa-telegram text-xl"></i></a>
+                </div>
+            </div>
+            <div class="border-t border-white/20 mt-8 pt-6 text-sm text-center opacity-80">
+                <p>&copy; 2023 Premium Apps Store. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Database for products
+        const products = [
+            { id: 1, name: "Netflix Premium", price: 45000, category: "streaming", duration: "1 Month", description: "Full HD/4K streaming, 4 screens simultaneously", icon: "fas fa-film" },
+            { id: 2, name: "YouTube Premium", price: 55000, category: "streaming", duration: "1 Month", description: "Ad-free videos, background play, YouTube Music", icon: "fab fa-youtube" },
+            { id: 3, name: "Spotify Premium", price: 35000, category: "streaming", duration: "1 Month", description: "Ad-free music, offline listening, high quality", icon: "fab fa-spotify" },
+            { id: 4, name: "Disney+ Hotstar", price: 40000, category: "streaming", duration: "1 Month", description: "Disney, Marvel, Star Wars, National Geographic", icon: "fas fa-tv" },
+            { id: 5, name: "Viu Premium", price: 30000, category: "streaming", duration: "1 Month", description: "Asian dramas and movies, download option", icon: "fas fa-video" },
+            { id: 6, name: "CapCut Pro", price: 75000, category: "video", duration: "Lifetime", description: "All premium effects, no watermark, cloud storage", icon: "fas fa-scissors" },
+            { id: 7, name: "Canva Pro", price: 120000, category: "productivity", duration: "1 Year", description: "Premium templates, 100GB storage, team features", icon: "fas fa-palette" },
+            { id: 8, name: "ChatGPT Plus", price: 250000, category: "productivity", duration: "1 Month", description: "GPT-4 access, faster response, priority access", icon: "fas fa-robot" },
+            { id: 9, name: "Grammarly Premium", price: 80000, category: "productivity", duration: "1 Month", description: "Advanced grammar checks, plagiarism detector", icon: "fas fa-spell-check" },
+            { id: 10, name: "TikTok Pro", price: 60000, category: "social", duration: "1 Month", description: "No ads, analytics, commercial music library", icon: "fab fa-tiktok" },
+            { id: 11, name: "Instagram Blue Tick", price: 1500000, category: "social", duration: "1 Year", description: "Verified badge on your Instagram profile", icon: "fab fa-instagram" },
+            { id: 12, name: "QuillBot Premium", price: 65000, category: "productivity", duration: "1 Month", description: "Advanced paraphrasing, plagiarism checker", icon: "fas fa-keyboard" }
+        ];
+
+        // Database for sales (simulated)
+        let salesData = [
+            { id: "ORD-1001", date: "2023-07-15", customer: "John Doe", wa: "81234567890", products: "Netflix Premium, YouTube Premium", total: 100000, status: "Completed" },
+            { id: "ORD-1002", date: "2023-07-16", customer: "Jane Smith", wa: "82345678901", products: "Canva Pro", total: 120000, status: "Completed" },
+            { id: "ORD-1003", date: "2023-07-17", customer: "Robert Johnson", wa: "83456789012", products: "ChatGPT Plus", total: 250000, status: "Processing" },
+            { id: "ORD-1004", date: "2023-07-18", customer: "Emily Davis", wa: "84567890123", products: "Spotify Premium, Viu Premium", total: 65000, status: "Completed" },
+            { id: "ORD-1005", date: "2023-07-19", customer: "Michael Wilson", wa: "85678901234", products: "CapCut Pro, TikTok Pro", total: 135000, status: "Pending Payment" }
+        ];
+
+        // Cart functionality
+        let cart = [];
+        
+        // DOM elements
+        const productsContainer = document.getElementById('products-container');
+        const orderSection = document.getElementById('order-section');
+        const orderItems = document.getElementById('order-items');
+        const orderTotal = document.getElementById('order-total');
+        const cartCount = document.getElementById('cart-count');
+        const categoryButtons = document.querySelectorAll('.category-btn');
+        const searchInput = document.getElementById('search-input');
+        const cancelOrderBtn = document.getElementById('cancel-order-btn');
+        const confirmOrderBtn = document.getElementById('confirm-order-btn');
+        const successModal = document.getElementById('success-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const salesTableBody = document.getElementById('sales-data');
+        const toggleDbBtn = document.getElementById('toggle-db-btn');
+        const exportBtn = document.getElementById('export-btn');
+        const qrisAmount = document.getElementById('qris-amount');
+
+        // Initialize the app
+        function init() {
+            renderProducts(products);
+            renderSalesData();
+            setupEventListeners();
+            
+            // Show export button if there are sales
+            if (salesData.length > 0) {
+                exportBtn.classList.remove('hidden');
+            }
+        }
+
+        // Render products to the page
+        function renderProducts(productsToRender) {
+            productsContainer.innerHTML = '';
+            
+            productsToRender.forEach(product => {
+                const productCard = document.createElement('div');
+                productCard.className = 'product-card bg-white rounded-xl shadow-md overflow-hidden transition duration-300';
+                productCard.innerHTML = `
+                    <div class="p-5">
+                        <div class="flex items-center mb-4">
+                            <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-xl mr-3">
+                                <i class="${product.icon}"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-lg text-gray-800">${product.name}</h3>
+                                <p class="text-sm text-gray-500">${product.category.charAt(0).toUpperCase() + product.category.slice(1)}</p>
+                            </div>
+                        </div>
+                        <p class="text-gray-600 text-sm mb-4">${product.description}</p>
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <span class="text-green-600 font-bold">Rp ${product.price.toLocaleString('id-ID')}</span>
+                                <span class="text-xs text-gray-500 block">${product.duration}</span>
+                            </div>
+                            <button class="add-to-cart-btn px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition" data-id="${product.id}">
+                                <i class="fas fa-cart-plus mr-1"></i> Add
+                            </button>
+                        </div>
+                    </div>
+                `;
+                productsContainer.appendChild(productCard);
+            });
+            
+            // Add event listeners to all add to cart buttons
+            document.querySelectorAll('.add-to-cart-btn').forEach(button => {
+                button.addEventListener('click', addToCart);
+            });
+        }
+
+        // Add product to cart
+        function addToCart(e) {
+            const productId = parseInt(e.target.getAttribute('data-id'));
+            const product = products.find(p => p.id === productId);
+            
+            // Check if product is already in cart
+            const existingItem = cart.find(item => item.id === productId);
+            
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push({
+                    id: product.id,
+                    name: product.name,
+                    price: product.price,
+                    quantity: 1
+                });
+            }
+            
+            updateCart();
+            showOrderSection();
+        }
+
+        // Update cart UI
+        function updateCart() {
+            // Update cart count
+            const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
+            cartCount.textContent = totalItems;
+            
+            // Update order items
+            orderItems.innerHTML = '';
+            let total = 0;
+            
+            cart.forEach(item => {
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+                
+                const orderItem = document.createElement('div');
+                orderItem.className = 'flex justify-between items-center py-3 border-b border-gray-200';
+                orderItem.innerHTML = `
+                    <div>
+                        <h4 class="font-medium">${item.name}</h4>
+                        <p class="text-sm text-gray-500">Rp ${item.price.toLocaleString('id-ID')} x ${item.quantity}</p>
+                    </div>
+                    <div class="flex items-center">
+                        <span class="font-semibold mr-4">Rp ${itemTotal.toLocaleString('id-ID')}</span>
+                        <button class="remove-item-btn text-red-500 hover:text-red-700" data-id="${item.id}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+                orderItems.appendChild(orderItem);
+            });
+            
+            // Update total
+            orderTotal.textContent = `Rp ${total.toLocaleString('id-ID')}`;
+            qrisAmount.textContent = `Rp ${total.toLocaleString('id-ID')}`;
+            
+            // Add event listeners to remove buttons
+            document.querySelectorAll('.remove-item-btn').forEach(button => {
+                button.addEventListener('click', removeFromCart);
+            });
+        }
+
+        // Remove item from cart
+        function removeFromCart(e) {
+            const productId = parseInt(e.target.closest('button').getAttribute('data-id'));
+            cart = cart.filter(item => item.id !== productId);
+            updateCart();
+            
+            if (cart.length === 0) {
+                hideOrderSection();
+            }
+        }
+
+        // Show order section
+        function showOrderSection() {
+            orderSection.classList.remove('hidden');
+            // Scroll to order section
+            orderSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Hide order section
+        function hideOrderSection() {
+            orderSection.classList.add('hidden');
+        }
+
+        // Filter products by category
+        function filterProducts(category) {
+            if (category === 'all') {
+                renderProducts(products);
+                return;
+            }
+            
+            const filteredProducts = products.filter(product => product.category === category);
+            renderProducts(filteredProducts);
+        }
+
+        // Search products
+        function searchProducts(query) {
+            const filteredProducts = products.filter(product => 
+                product.name.toLowerCase().includes(query.toLowerCase()) || 
+                product.description.toLowerCase().includes(query.toLowerCase())
+            );
+            renderProducts(filteredProducts);
+        }
+
+        // Confirm order
+        function confirmOrder() {
+            const customerName = document.getElementById('customer-name').value;
+            const customerWA = document.getElementById('customer-wa').value;
+            const customerEmail = document.getElementById('customer-email').value;
+            const customerNote = document.getElementById('customer-note').value;
+            
+            // Validate inputs
+            if (!customerName || !customerWA) {
+                alert('Please fill in all required fields (Name and WhatsApp Number)');
+                return;
+            }
+            
+            // Format WhatsApp number
+            let formattedWA = customerWA;
+            if (formattedWA.startsWith('0')) {
+                formattedWA = '62' + formattedWA.substring(1);
+            }
+            
+            // Create order summary
+            const orderId = 'ORD-' + (1000 + salesData.length + 1);
+            const today = new Date().toISOString().split('T')[0];
+            const productsList = cart.map(item => `${item.name} (${item.quantity})`).join(', ');
+            const totalAmount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            
+            // Add to sales data
+            const newOrder = {
+                id: orderId,
+                date: today,
+                customer: customerName,
+                wa: formattedWA,
+                products: productsList,
+                total: totalAmount,
+                status: "Processing"
+            };
+            
+            salesData.unshift(newOrder);
+            
+            // Update sales table
+            renderSalesData();
+            
+            // Create WhatsApp message
+            const whatsappMessage = `Halo, saya ${customerName}%0A%0A` +
+                                   `Saya ingin memesan:%0A%0A` +
+                                   `${productsList}%0A%0A` +
+                                   `Total: Rp ${totalAmount.toLocaleString('id-ID')}%0A%0A` +
+                                   `No. WhatsApp: ${formattedWA}%0A` +
+                                   (customerEmail ? `Email: ${customerEmail}%0A` : '') +
+                                   (customerNote ? `Catatan: ${customerNote}` : '');
+            
+            // Open WhatsApp
+            window.open(`https://wa.me/6281234567890?text=${whatsappMessage}`, '_blank');
+            
+            // Reset cart and form
+            cart = [];
+            updateCart();
+            hideOrderSection();
+            document.getElementById('customer-form').reset();
+            
+            // Show success modal
+            successModal.classList.remove('hidden');
+            
+            // Show export button if it was hidden
+            exportBtn.classList.remove('hidden');
+        }
+
+        // Render sales data to table
+        function renderSalesData() {
+            salesTableBody.innerHTML = '';
+            
+            salesData.forEach(sale => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+                row.innerHTML = `
+                    <td class="py-3 px-4 border-b">${sale.id}</td>
+                    <td class="py-3 px-4 border-b">${sale.date}</td>
+                    <td class="py-3 px-4 border-b">${sale.customer}</td>
+                    <td class="py-3 px-4 border-b">${sale.wa}</td>
+                    <td class="py-3 px-4 border-b">${sale.products}</td>
+                    <td class="py-3 px-4 border-b">Rp ${sale.total.toLocaleString('id-ID')}</td>
+                    <td class="py-3 px-4 border-b">
+                        <span class="px-2 py-1 text-xs rounded-full ${
+                            sale.status === 'Completed' ? 'bg-green-100 text-green-800' : 
+                            sale.status === 'Processing' ? 'bg-blue-100 text-blue-800' : 
+                            'bg-yellow-100 text-yellow-800'
+                        }">${sale.status}</span>
+                    </td>
+                `;
+                salesTableBody.appendChild(row);
+            });
+        }
+
+        // Export sales data to Excel
+        function exportToExcel() {
+            // Prepare data for export
+            const exportData = salesData.map(sale => ({
+                'Order ID': sale.id,
+                'Date': sale.date,
+                'Customer': sale.customer,
+                'WhatsApp': sale.wa,
+                'Products': sale.products,
+                'Total': sale.total,
+                'Status': sale.status
+            }));
+            
+            // Create worksheet
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Sales Data");
+            
+            // Export to file
+            XLSX.writeFile(wb, `PremiumAppsSales_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Category filter buttons
+            categoryButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // Remove active class from all buttons
+                    categoryButtons.forEach(btn => {
+                        btn.classList.remove('bg-green-600', 'text-white');
+                        btn.classList.add('bg-gray-200', 'text-gray-800');
+                    });
+                    
+                    // Add active class to clicked button
+                    button.classList.remove('bg-gray-200', 'text-gray-800');
+                    button.classList.add('bg-green-600', 'text-white');
+                    
+                    // Filter products
+                    const category = button.getAttribute('data-category');
+                    filterProducts(category);
+                });
+            });
+            
+            // Search input
+            searchInput.addEventListener('input', () => {
+                searchProducts(searchInput.value);
+            });
+            
+            // Cancel order button
+            cancelOrderBtn.addEventListener('click', () => {
+                cart = [];
+                updateCart();
+                hideOrderSection();
+            });
+            
+            // Confirm order button
+            confirmOrderBtn.addEventListener('click', confirmOrder);
+            
+            // Close modal button
+            closeModalBtn.addEventListener('click', () => {
+                successModal.classList.add('hidden');
+            });
+            
+            // Toggle database visibility
+            toggleDbBtn.addEventListener('click', () => {
+                const dbSection = document.getElementById('database-section');
+                if (dbSection.classList.contains('hidden')) {
+                    dbSection.classList.remove('hidden');
+                    toggleDbBtn.innerHTML = '<i class="fas fa-eye-slash mr-2"></i>Hide Database';
+                } else {
+                    dbSection.classList.add('hidden');
+                    toggleDbBtn.innerHTML = '<i class="fas fa-eye mr-2"></i>Show Database';
+                }
+            });
+            
+            // Export button
+            exportBtn.addEventListener('click', exportToExcel);
+        }
+
+        // Initialize the app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
 </html>
